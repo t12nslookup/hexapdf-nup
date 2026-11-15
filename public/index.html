@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f3ee">
+    <title>Pamphlet — make a long booklet</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="wordmark" href="/" aria-label="Pamphlet home">
+        <span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <span>fold<span class="wordmark-light">form</span></span>
+      </a>
+      <span class="topbar-note">A little more room for every page.</span>
+    </header>
+
+    <main>
+      <section class="intro">
+        <p class="eyebrow"><span class="eyebrow-line"></span> PRINT, FOLD, KEEP</p>
+        <h1>Make a long<br><em>booklet</em> from a PDF.</h1>
+        <p class="intro-copy">Arrange pages onto A4 sheets for double-sided printing. Choose a grid, check the preview, and download when it looks right.</p>
+      </section>
+
+      <section class="workspace" aria-label="Create a pamphlet">
+        <div class="controls">
+          <div class="step-heading">
+            <span class="step-number">01</span>
+            <div>
+              <h2>Start with your PDF</h2>
+              <p>Slides, documents, notes — one page per original page.</p>
+            </div>
+          </div>
+
+          <label class="upload-box" id="drop-zone" for="pdf-file">
+            <input id="pdf-file" type="file" accept="application/pdf,.pdf">
+            <span class="upload-icon" aria-hidden="true">
+              <svg viewBox="0 0 32 32" fill="none"><path d="M16 21V5m0 0-6 6m6-6 6 6M6 20v6h20v-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <span class="upload-title" id="upload-title">Drop your PDF here</span>
+            <span class="upload-subtitle" id="upload-subtitle">or <span>browse files</span> · up to 50 MB</span>
+          </label>
+
+          <div class="file-summary" id="file-summary" hidden>
+            <span class="file-icon" aria-hidden="true">PDF</span>
+            <span class="file-name" id="file-name"></span>
+            <button type="button" class="text-button" id="remove-file" aria-label="Remove selected PDF">Remove</button>
+          </div>
+
+          <div class="step-heading step-layout">
+            <span class="step-number">02</span>
+            <div>
+              <h2>Choose a layout</h2>
+              <p>More pages per sheet means smaller printed pages.</p>
+            </div>
+          </div>
+
+          <label class="field-label" for="layout-select">Columns × rows per side</label>
+          <div class="select-wrap">
+            <select id="layout-select" disabled>
+              <option value="">Upload a PDF to see layouts</option>
+            </select>
+            <span class="select-chevron" aria-hidden="true">⌄</span>
+          </div>
+          <p class="recommendation" id="recommendation" hidden>
+            <span class="recommendation-dot"></span>
+            <span id="recommendation-text"></span>
+          </p>
+
+          <button type="button" class="primary-button" id="preview-button" disabled>
+            <span>Make a preview</span>
+            <span class="button-arrow" aria-hidden="true">↗</span>
+          </button>
+          <p class="status" id="status" role="status" aria-live="polite">Choose a PDF to get started.</p>
+
+          <div class="privacy-note">
+            <span class="lock-icon" aria-hidden="true">◈</span>
+            <p>Your PDF is processed in memory and never saved to disk. It's discarded when processing finishes.</p>
+          </div>
+        </div>
+
+        <div class="preview-panel">
+          <div class="preview-heading">
+            <div>
+              <p class="eyebrow preview-eyebrow">YOUR PRINT PREVIEW</p>
+              <h2 id="preview-title">A fresh sheet, ready when you are.</h2>
+            </div>
+            <span class="a4-tag" id="paper-tag" hidden>A4 · PORTRAIT</span>
+          </div>
+
+          <div class="preview-empty" id="preview-empty">
+            <div class="paper-stack" aria-hidden="true">
+              <div class="paper paper-back"></div>
+              <div class="paper paper-middle"></div>
+              <div class="paper paper-front">
+                <span class="paper-rule rule-one"></span>
+                <span class="paper-rule rule-two"></span>
+                <span class="paper-rule rule-three"></span>
+                <span class="paper-rule rule-four"></span>
+                <span class="paper-rule rule-five"></span>
+                <span class="paper-fold"></span>
+              </div>
+            </div>
+            <p>Your imposed pages will appear here.</p>
+            <span>Preview before you print.</span>
+          </div>
+
+          <div class="preview-frame" id="preview-frame" hidden>
+            <iframe id="pdf-preview" title="Pamphlet PDF preview"></iframe>
+          </div>
+
+          <div class="preview-footer" id="preview-footer" hidden>
+            <p id="output-summary"></p>
+            <a class="download-button" id="download-button" href="#" download="pamphlet.pdf">
+              Download PDF <span aria-hidden="true">↓</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section class="how-it-works" aria-label="Printing instructions">
+        <div>
+          <span class="small-index">A</span>
+          <h3>One sheet, two sides</h3>
+          <p>Each A4 sheet holds two PDF pages — one for each side of your paper.</p>
+        </div>
+        <div>
+          <span class="small-index">B</span>
+          <h3>Blanks are intentional</h3>
+          <p>Empty slots are added at the end so every sheet has a matching front and back.</p>
+        </div>
+        <div>
+          <span class="small-index">C</span>
+          <h3>Print at actual size</h3>
+          <p>Print double-sided at 100% scale. Use the dashed guides to line up your fold or cut.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer><span>FOLDFORM</span><span>Made for paper people.</span></footer>
+  </body>
+</html>
