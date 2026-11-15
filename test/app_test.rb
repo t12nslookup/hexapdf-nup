@@ -3,6 +3,7 @@
 require 'minitest/autorun'
 require 'rack/mock'
 require 'stringio'
+ENV['RAILWAY_PUBLIC_DOMAIN'] ||= 'foldform.up.railway.app'
 require_relative '../app'
 
 class PamphletAppTest < Minitest::Test
@@ -12,6 +13,13 @@ class PamphletAppTest < Minitest::Test
     assert_equal 200, response.status
     assert_equal 2, JSON.parse(response.body)['page_count']
     assert_equal 'no-store', response.headers['Cache-Control']
+  end
+
+  def test_homepage_accepts_railway_public_domain
+    response = request('GET', '/', '', host: ENV.fetch('RAILWAY_PUBLIC_DOMAIN'))
+
+    assert_equal 200, response.status
+    assert_includes response.body, 'Make a long'
   end
 
   def test_analyze_endpoint_rejects_non_pdf_uploads
@@ -41,15 +49,18 @@ class PamphletAppTest < Minitest::Test
 
   private
 
-  def request(method, path, body)
+  def request(method, path, body, host: 'localhost')
     env = Rack::MockRequest.env_for(
       path,
       method: method,
       'CONTENT_TYPE' => 'application/pdf',
+      'HTTP_HOST' => host,
       input: body
     )
     status, headers, response_body = PamphletApp.call(env)
-    Struct.new(:status, :headers, :body).new(status, headers, response_body.each.to_a.join)
+    body = +''.b
+    response_body.each { |chunk| body << chunk }
+    Struct.new(:status, :headers, :body).new(status, headers, body)
   end
 
   def pdf_with_pages(count)

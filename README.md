@@ -24,7 +24,8 @@ bundle exec ruby -Itest test/app_test.rb
 
 Create a Railway project from this GitHub repository. Railway installs the
 gems from `Gemfile` and starts the web process using `Procfile`; it listens on
-Railway's assigned `PORT`.
+Railway's assigned `PORT`. The app permits Railway's hostname from its
+`RAILWAY_PUBLIC_DOMAIN` variable, as well as localhost for local development.
 
 ## PDF handling
 

@@ -10,6 +10,8 @@ class PamphletApp < Sinatra::Base
   set :public_folder, File.expand_path('public', __dir__)
   set :show_exceptions, false
   set :raise_errors, false
+  set :host_authorization,
+      permitted_hosts: settings.host_authorization[:permitted_hosts] + [ENV['RAILWAY_PUBLIC_DOMAIN']].compact
 
   before do
     headers 'Cache-Control' => 'no-store',
