@@ -26,7 +26,7 @@ class PamphletApp < Sinatra::Base
   post '/api/analyze' do
     pdf_data = read_pdf_upload
     content_type :json
-    JSON.generate(Pamphlet.analyze(pdf_data))
+    JSON.generate(Pamphlet.analyze(pdf_data, orientation: params.fetch('orientation', 'portrait')))
   rescue Pamphlet::InputError => e
     json_error(422, e.message)
   rescue HexaPDF::Error, ArgumentError
@@ -37,7 +37,8 @@ class PamphletApp < Sinatra::Base
     pdf_data = read_pdf_upload
     columns = Integer(params['columns'], 10)
     rows = Integer(params['rows'], 10)
-    result = Pamphlet.build(pdf_data, columns: columns, rows: rows)
+    result = Pamphlet.build(pdf_data, columns: columns, rows: rows,
+                                      orientation: params.fetch('orientation', 'portrait'))
 
     headers 'Content-Type' => 'application/pdf',
             'X-Output-Pages' => result[:output_pages].to_s,

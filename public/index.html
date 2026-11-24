@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#f5f3ee">
     <title>Pamphlet — make a long booklet</title>
     <link rel="stylesheet" href="/styles.css">
-    <script src="/app.js" defer></script>
+    <script src="/app.js" type="module"></script>
   </head>
   <body>
     <header class="topbar">
@@ -64,6 +64,15 @@
             </select>
             <span class="select-chevron" aria-hidden="true">⌄</span>
           </div>
+          <p class="layout-note" id="layout-note">Two and four columns are arranged for a center fold; three columns are sequential.</p>
+          <label class="field-label orientation-label" for="orientation-select">A4 orientation</label>
+          <div class="select-wrap">
+            <select id="orientation-select">
+              <option value="portrait">Portrait</option>
+              <option value="landscape">Landscape</option>
+            </select>
+            <span class="select-chevron" aria-hidden="true">⌄</span>
+          </div>
           <p class="recommendation" id="recommendation" hidden>
             <span class="recommendation-dot"></span>
             <span id="recommendation-text"></span>
@@ -108,8 +117,9 @@
           </div>
 
           <div class="preview-frame" id="preview-frame" hidden>
-            <iframe id="pdf-preview" title="Pamphlet PDF preview"></iframe>
+            <canvas id="pdf-preview" aria-label="Selected printed side"></canvas>
           </div>
+          <div class="preview-pages" id="preview-pages" role="group" aria-label="Select a printed side" hidden></div>
 
           <div class="preview-footer" id="preview-footer" hidden>
             <p id="output-summary"></p>
@@ -129,12 +139,12 @@
         <div>
           <span class="small-index">B</span>
           <h3>Blanks are intentional</h3>
-          <p>Empty slots are added at the end so every sheet has a matching front and back.</p>
+          <p>Empty slots complete the final sheet; booklet layouts place them as needed for folding.</p>
         </div>
         <div>
           <span class="small-index">C</span>
           <h3>Print at actual size</h3>
-          <p>Print double-sided at 100% scale. Use the dashed guides to line up your fold or cut.</p>
+          <p>Print double-sided at 100% scale. Two- and four-column layouts fold at the center; three-column layouts read in order.</p>
         </div>
       </section>
     </main>

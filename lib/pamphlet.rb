@@ -17,7 +17,8 @@ module Pamphlet
 
   module_function
 
-  def analyze(pdf_data)
+  def analyze(pdf_data, orientation: 'portrait')
+    validate_orientation!(orientation)
     source = open_document(pdf_data)
     page_count = source.pages.count
     validate_page_count!(page_count)
@@ -25,7 +26,7 @@ module Pamphlet
     first_page = source.pages[0]
     page_width, page_height = page_dimensions(first_page)
     candidates = LAYOUTS.map do |layout|
-      candidate(layout[:columns], layout[:rows], page_count, page_width, page_height)
+      candidate(layout[:columns], layout[:rows], page_count, page_width, page_height, orientation)
     end
     recommendation = recommend(candidates)
 
@@ -38,8 +39,9 @@ module Pamphlet
     }
   end
 
-  def build(pdf_data, columns:, rows:)
+  def build(pdf_data, columns:, rows:, orientation: 'portrait')
     validate_layout!(columns, rows)
+    validate_orientation!(orientation)
 
     source = open_document(pdf_data)
     page_count = source.pages.count
@@ -47,8 +49,8 @@ module Pamphlet
     output = HexaPDF::Document.new
 
     page_order(page_count, columns, rows).each_slice(columns * rows) do |page_indexes|
-      canvas = output.pages.add(:A4, orientation: :portrait).canvas
-      draw_column_guides(canvas, columns, rows)
+      canvas = output.pages.add(:A4, orientation: orientation.to_sym).canvas
+      draw_column_guides(canvas, columns, rows, orientation)
 
       columns.times do |column|
         rows.times do |row|
@@ -56,13 +58,14 @@ module Pamphlet
           next if source_index >= page_count
 
           source_page = source.pages[source_index]
-          cell_width, cell_height = cell_size(columns, rows)
+          cell_width, cell_height = cell_size(columns, rows, orientation)
           source_width, source_height = page_dimensions(source_page)
           scale = [cell_width / source_width, cell_height / source_height].min
           page_width = source_width * scale
           page_height = source_height * scale
           x = MARGIN + column * (cell_width + 2 * MARGIN) + (cell_width - page_width) / 2
-          y = PAPER_HEIGHT - MARGIN - cell_height - row * (cell_height + MARGIN) +
+          _, paper_height = paper_size(orientation)
+          y = paper_height - MARGIN - cell_height - row * (cell_height + MARGIN) +
               (cell_height - page_height) / 2
 
           form = output.import(source_page.to_form_xobject)
@@ -87,19 +90,22 @@ module Pamphlet
     pages_per_sheet = columns * rows * 2
     padded_pages = (page_count.to_f / pages_per_sheet).ceil * pages_per_sheet
     remaining = (0...padded_pages).to_a
+    return remaining if columns.odd?
+
     ordered = []
+    half_side = rows * columns / 2
 
     until remaining.empty?
-      ordered.concat(remaining.pop(rows))
-      ordered.concat(remaining.shift(rows * columns))
-      ordered.concat(remaining.pop(rows * (columns - 1)))
+      ordered.concat(remaining.pop(half_side))
+      ordered.concat(remaining.shift(half_side * 2))
+      ordered.concat(remaining.pop(half_side))
     end
 
     ordered
   end
 
-  def candidate(columns, rows, page_count, page_width, page_height)
-    width, height = cell_size(columns, rows)
+  def candidate(columns, rows, page_count, page_width, page_height, orientation)
+    width, height = cell_size(columns, rows, orientation)
     scale = [width / page_width, height / page_height].min
     capacity = columns * rows * 2
     sheets = (page_count.to_f / capacity).ceil
@@ -129,22 +135,29 @@ module Pamphlet
   end
   private_class_method :recommend
 
-  def cell_size(columns, rows)
+  def paper_size(orientation)
+    orientation == 'landscape' ? [PAPER_HEIGHT, PAPER_WIDTH] : [PAPER_WIDTH, PAPER_HEIGHT]
+  end
+  private_class_method :paper_size
+
+  def cell_size(columns, rows, orientation)
+    width, height = paper_size(orientation)
     [
-      (PAPER_WIDTH - 2 * MARGIN - (columns - 1) * 2 * MARGIN) / columns.to_f,
-      (PAPER_HEIGHT - 2 * MARGIN - (rows - 1) * MARGIN) / rows.to_f
+      (width - 2 * MARGIN - (columns - 1) * 2 * MARGIN) / columns.to_f,
+      (height - 2 * MARGIN - (rows - 1) * MARGIN) / rows.to_f
     ]
   end
   private_class_method :cell_size
 
-  def draw_column_guides(canvas, columns, rows)
+  def draw_column_guides(canvas, columns, rows, orientation)
     return if columns < 2
 
-    cell_width, = cell_size(columns, rows)
+    cell_width, = cell_size(columns, rows, orientation)
+    _, height = paper_size(orientation)
     canvas.line_dash_pattern(10, 2)
     (1...columns).each do |column|
       x = MARGIN + column * cell_width + (2 * column - 1) * MARGIN
-      canvas.line(x, MARGIN * 4, x, PAPER_HEIGHT - MARGIN * 4).stroke
+      canvas.line(x, MARGIN * 4, x, height - MARGIN * 4).stroke
     end
   end
   private_class_method :draw_column_guides
@@ -181,6 +194,11 @@ module Pamphlet
     raise InputError, 'Select a layout with 2 to 4 columns and 2 to 4 rows.' unless valid_columns && valid_rows
   end
   private_class_method :validate_layout!
+
+  def validate_orientation!(orientation)
+    raise InputError, 'Select portrait or landscape orientation.' unless %w[portrait landscape].include?(orientation)
+  end
+  private_class_method :validate_orientation!
 
   def points_to_mm(points)
     points * 25.4 / 72

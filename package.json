@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "devDependencies": {
+    "pdfjs-dist": "4.10.38"
+  }
+}

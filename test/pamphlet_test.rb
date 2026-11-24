@@ -13,6 +13,37 @@ class PamphletTest < Minitest::Test
     assert_equal [15, 16, 17, 6, 7, 8, 9, 10, 11, 12, 13, 14], order.last(12)
   end
 
+  def test_three_column_order_is_sequential_and_pads_a_duplex_sheet
+    assert_equal (0...24).to_a, Pamphlet.page_order(20, 3, 2)
+    assert_equal (0...12).to_a, Pamphlet.page_order(1, 3, 2)
+  end
+
+  def test_four_column_order_places_two_columns_on_each_side_of_the_fold
+    assert_equal [28, 29, 30, 31, 0, 1, 2, 3, 4, 5, 6, 7, 24, 25, 26, 27,
+                  20, 21, 22, 23, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+                 Pamphlet.page_order(32, 4, 2)
+  end
+
+  def test_landscape_changes_paper_dimensions_and_layout_estimates
+    data = pdf_with_pages(7)
+    portrait = Pamphlet.analyze(data)
+    landscape = Pamphlet.analyze(data, orientation: 'landscape')
+    refute_equal portrait[:candidates], landscape[:candidates]
+
+    result = Pamphlet.build(data, columns: 3, rows: 2, orientation: 'landscape')
+    output = HexaPDF::Document.new(io: StringIO.new(result[:pdf]))
+    assert_operator output.pages[0].box.width, :>, output.pages[0].box.height
+    assert_equal 2, result[:output_pages]
+    assert_equal 5, result[:blank_slots]
+  end
+
+  def test_invalid_orientation_is_rejected
+    assert_raises(Pamphlet::InputError) { Pamphlet.analyze(pdf_with_pages(1), orientation: 'sideways') }
+    assert_raises(Pamphlet::InputError) do
+      Pamphlet.build(pdf_with_pages(1), columns: 2, rows: 2, orientation: 'sideways')
+    end
+  end
+
   def test_analysis_recommends_fewer_sheets_when_landscape_slides_fit_equally
     result = Pamphlet.analyze(pdf_with_pages(22, width: 960, height: 540))
 

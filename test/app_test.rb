@@ -47,6 +47,20 @@ class PamphletAppTest < Minitest::Test
     assert_equal '5', response.headers['X-Blank-Slots']
   end
 
+  def test_endpoints_accept_and_validate_orientation
+    data = pdf_with_pages(7)
+    response = request('POST', '/api/preview?columns=3&rows=2&orientation=landscape', data)
+    assert_equal 200, response.status
+    output = HexaPDF::Document.new(io: StringIO.new(response.body))
+    assert_operator output.pages[0].box.width, :>, output.pages[0].box.height
+
+    %w[/api/analyze?orientation=sideways /api/preview?columns=2&rows=2&orientation=sideways].each do |path|
+      invalid = request('POST', path, data)
+      assert_equal 422, invalid.status
+      assert_match(/orientation/, JSON.parse(invalid.body)['error'])
+    end
+  end
+
   private
 
   def request(method, path, body, host: 'localhost')

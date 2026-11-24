@@ -1,3 +1,7 @@
+import { getDocument, GlobalWorkerOptions } from '/vendor/pdfjs/pdf.min.mjs';
+
+GlobalWorkerOptions.workerSrc = '/vendor/pdfjs/pdf.worker.min.mjs';
+
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
 const fileInput = document.querySelector('#pdf-file');
 const dropZone = document.querySelector('#drop-zone');
@@ -6,13 +10,14 @@ const fileName = document.querySelector('#file-name');
 const uploadTitle = document.querySelector('#upload-title');
 const uploadSubtitle = document.querySelector('#upload-subtitle');
 const layoutSelect = document.querySelector('#layout-select');
+const orientationSelect = document.querySelector('#orientation-select');
 const previewButton = document.querySelector('#preview-button');
 const statusMessage = document.querySelector('#status');
 const recommendation = document.querySelector('#recommendation');
 const recommendationText = document.querySelector('#recommendation-text');
 const previewEmpty = document.querySelector('#preview-empty');
 const previewFrame = document.querySelector('#preview-frame');
-const preview = document.querySelector('#pdf-preview');
+const previewPages = document.querySelector('#preview-pages');
 const previewTitle = document.querySelector('#preview-title');
 const previewFooter = document.querySelector('#preview-footer');
 const outputSummary = document.querySelector('#output-summary');
@@ -24,6 +29,10 @@ let analysis = null;
 let previewUrl = null;
 let activeController = null;
 let requestVersion = 0;
+let previewDocument = null;
+let thumbnailObserver = null;
+let mainRender = null;
+let selectedPageVersion = 0;
 
 function setStatus(message, state = '') {
   statusMessage.textContent = message;
@@ -31,11 +40,22 @@ function setStatus(message, state = '') {
 }
 
 function clearPreview() {
+  selectedPageVersion += 1;
+  mainRender?.cancel();
+  mainRender = null;
+  thumbnailObserver?.disconnect();
+  thumbnailObserver = null;
+  if (previewDocument) {
+    previewDocument.destroy();
+    previewDocument = null;
+  }
   if (previewUrl) {
     URL.revokeObjectURL(previewUrl);
     previewUrl = null;
   }
-  preview.removeAttribute('src');
+  previewFrame.replaceChildren();
+  previewPages.replaceChildren();
+  previewPages.hidden = true;
   previewFrame.hidden = true;
   previewEmpty.hidden = false;
   previewFooter.hidden = true;
@@ -69,7 +89,7 @@ function formatLayout(candidate, isRecommended) {
   return { label: `${label} — ${sheetText}, ${imageSize}${marker}`, imageSize };
 }
 
-async function analyzeFile(file) {
+async function analyzeFile(file, preferredLayout = '') {
   const version = ++requestVersion;
   activeController?.abort();
   activeController = new AbortController();
@@ -98,7 +118,7 @@ async function analyzeFile(file) {
 
   setStatus('Checking page size and finding a good layout…', 'working');
   try {
-    const response = await fetch('/api/analyze', {
+    const response = await fetch(`/api/analyze?orientation=${orientationSelect.value}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/pdf' },
       body: file,
@@ -110,10 +130,12 @@ async function analyzeFile(file) {
 
     analysis = result;
     const suggested = `${result.recommended.columns}x${result.recommended.rows}`;
+    layoutSelect.replaceChildren();
     for (const candidate of result.candidates) {
       const value = `${candidate.columns}x${candidate.rows}`;
       const isRecommended = value === suggested;
-      const option = new Option(formatLayout(candidate, isRecommended).label, value, false, isRecommended);
+      const option = new Option(formatLayout(candidate, isRecommended).label, value, false,
+        value === (preferredLayout || suggested));
       layoutSelect.add(option);
     }
     layoutSelect.disabled = false;
@@ -125,6 +147,70 @@ async function analyzeFile(file) {
     if (error.name === 'AbortError') return;
     if (version === requestVersion) setStatus(error.message, 'error');
   }
+}
+
+async function renderPage(pdf, number, canvas, width, version, selection = null) {
+  try {
+    const page = await pdf.getPage(number);
+    if (version !== requestVersion || pdf !== previewDocument ||
+        (selection !== null && selection !== selectedPageVersion)) return;
+    const viewport = page.getViewport({ scale: width / page.getViewport({ scale: 1 }).width });
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    const task = page.render({ canvasContext: canvas.getContext('2d'), viewport });
+    if (selection !== null) mainRender = task;
+    await task.promise;
+  } catch (error) {
+    if (version === requestVersion && pdf === previewDocument && error.name !== 'RenderingCancelledException') {
+      setStatus(`Could not render preview page ${number}: ${error.message}`, 'error');
+    }
+  }
+}
+
+function selectPage(number, version) {
+  const pdf = previewDocument;
+  if (!pdf || version !== requestVersion) return;
+  selectedPageVersion += 1;
+  mainRender?.cancel();
+  mainRender = null;
+  const canvas = document.createElement('canvas');
+  canvas.id = 'pdf-preview';
+  canvas.setAttribute('aria-label', `Printed side ${number} of ${pdf.numPages}`);
+  previewFrame.replaceChildren(canvas);
+  for (const button of previewPages.children) {
+    button.setAttribute('aria-pressed', String(Number(button.dataset.page) === number));
+  }
+  renderPage(pdf, number, canvas, 900, version, selectedPageVersion);
+}
+
+function showPages(pdf, version) {
+  const observer = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      observer.unobserve(entry.target);
+      renderPage(pdf, Number(entry.target.dataset.page), entry.target.querySelector('canvas'), 144, version);
+    }
+  }, { root: previewPages, rootMargin: '100px' });
+  thumbnailObserver = observer;
+
+  for (let number = 1; number <= pdf.numPages; number += 1) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'page-thumbnail';
+    button.dataset.page = number;
+    button.setAttribute('aria-label', `Show printed side ${number}`);
+    button.setAttribute('aria-pressed', 'false');
+    const canvas = document.createElement('canvas');
+    canvas.setAttribute('aria-hidden', 'true');
+    const label = document.createElement('span');
+    label.textContent = `Side ${number}`;
+    button.append(canvas, label);
+    button.addEventListener('click', () => selectPage(number, version));
+    previewPages.append(button);
+    observer.observe(button);
+  }
+  previewPages.hidden = false;
+  selectPage(1, version);
 }
 
 async function makePreview() {
@@ -139,7 +225,7 @@ async function makePreview() {
   setStatus('Arranging pages and building your preview…', 'working');
 
   try {
-    const response = await fetch(`/api/preview?columns=${columns}&rows=${rows}`, {
+    const response = await fetch(`/api/preview?columns=${columns}&rows=${rows}&orientation=${orientationSelect.value}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/pdf' },
       body: selectedFile,
@@ -154,12 +240,24 @@ async function makePreview() {
 
     clearPreview();
     previewUrl = URL.createObjectURL(blob);
-    preview.src = previewUrl;
+    const pdf = await getDocument({
+      data: await blob.arrayBuffer(),
+      cMapUrl: '/vendor/pdfjs/cmaps/',
+      cMapPacked: true,
+      standardFontDataUrl: '/vendor/pdfjs/standard_fonts/'
+    }).promise;
+    if (version !== requestVersion) {
+      await pdf.destroy();
+      return;
+    }
+    previewDocument = pdf;
     previewFrame.hidden = false;
     previewEmpty.hidden = true;
     previewFooter.hidden = false;
     paperTag.hidden = false;
+    paperTag.textContent = `A4 · ${orientationSelect.value.toUpperCase()}`;
     previewTitle.textContent = `${columns} × ${rows} layout`;
+    showPages(pdf, version);
     const sheets = Number(response.headers.get('X-Paper-Sheets'));
     const blanks = Number(response.headers.get('X-Blank-Slots'));
     const outputPages = Number(response.headers.get('X-Output-Pages'));
@@ -168,9 +266,12 @@ async function makePreview() {
     const baseName = selectedFile.name.replace(/\.pdf$/i, '') || 'pamphlet';
     downloadButton.href = previewUrl;
     downloadButton.download = `${baseName}-pamphlet.pdf`;
-    setStatus('Preview ready. Check both sides, then download your PDF.', 'success');
+    setStatus('Preview ready. Check each side, then download your PDF.', 'success');
   } catch (error) {
-    if (error.name !== 'AbortError' && version === requestVersion) setStatus(error.message, 'error');
+    if (error.name !== 'AbortError' && version === requestVersion) {
+      clearPreview();
+      setStatus(error.message, 'error');
+    }
   } finally {
     if (version === requestVersion) previewButton.disabled = false;
   }
@@ -188,6 +289,9 @@ layoutSelect.addEventListener('change', () => {
   previewButton.disabled = false;
   clearPreview();
   if (selectedFile && analysis) setStatus('Layout changed. Make a new preview to see it.', 'success');
+});
+orientationSelect.addEventListener('change', () => {
+  if (selectedFile) analyzeFile(selectedFile, layoutSelect.value);
 });
 previewButton.addEventListener('click', makePreview);
 
