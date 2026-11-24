@@ -7,8 +7,7 @@ const fileInput = document.querySelector('#pdf-file');
 const dropZone = document.querySelector('#drop-zone');
 const fileSummary = document.querySelector('#file-summary');
 const fileName = document.querySelector('#file-name');
-const uploadTitle = document.querySelector('#upload-title');
-const uploadSubtitle = document.querySelector('#upload-subtitle');
+const removeFile = document.querySelector('#remove-file');
 const layoutSelect = document.querySelector('#layout-select');
 const orientationSelect = document.querySelector('#orientation-select');
 const previewButton = document.querySelector('#preview-button');
@@ -78,6 +77,7 @@ function resetSelection() {
   recommendation.hidden = true;
   clearPreview();
   setStatus('Choose a PDF to get started.');
+  fileInput.focus();
 }
 
 function formatLayout(candidate, isRecommended) {
@@ -99,10 +99,10 @@ async function analyzeFile(file, preferredLayout = '') {
   analysis = null;
   clearPreview();
   fileName.textContent = file.name;
-  uploadTitle.textContent = 'PDF selected';
-  uploadSubtitle.textContent = 'Choose a layout below to continue.';
+  const fileInputHadFocus = document.activeElement === fileInput;
   fileSummary.hidden = false;
   dropZone.hidden = true;
+  if (fileInputHadFocus) removeFile.focus();
   layoutSelect.disabled = true;
   previewButton.disabled = true;
   recommendation.hidden = true;
@@ -282,7 +282,7 @@ fileInput.addEventListener('change', () => {
   if (file) analyzeFile(file);
 });
 
-document.querySelector('#remove-file').addEventListener('click', resetSelection);
+removeFile.addEventListener('click', resetSelection);
 layoutSelect.addEventListener('change', () => {
   requestVersion += 1;
   activeController?.abort();

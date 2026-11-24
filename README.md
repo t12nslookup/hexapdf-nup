@@ -4,6 +4,8 @@ Foldform arranges a PDF's pages onto A4 sheets for double-sided printing. The
 web interface lets you compare 2–4 column and row layouts in portrait or
 landscape, preview each printed side, and download the imposed PDF.
 
+Try the [live demo](https://nup-pamphlet.up.railway.app/).
+
 Two- and four-column layouts are ordered for a center fold. Each half of a
 four-column side contains two columns. Three-column layouts fill columns
 sequentially from top to bottom and left to right, then continue on the next
@@ -34,11 +36,21 @@ Railway's assigned `PORT`. The app permits Railway's hostname from its
 
 ## PDF handling
 
-PDFs are sent as raw request bodies (not multipart uploads), read and
-processed in memory, and never written to disk or retained between requests.
-The browser sends the selected PDF again when generating a preview. The app
-does not use a database. Uploads are limited to 50 MB and 500 pages per PDF.
-The preview renders locally in the browser using the bundled PDF.js files.
+PDFs are uploaded to the server as raw request bodies (not multipart uploads).
+The application reads and processes them in memory; it does not save uploaded
+or generated PDFs to disk or retain them between requests, and it has no
+database. The browser sends the selected PDF again when generating a preview;
+the generated PDF is returned to the browser for preview and download.
+
+This describes the application, not a guarantee about the hosting provider or
+network: infrastructure may buffer requests or retain logs such as IP addresses
+and request metadata. Users should consider the sensitivity of their documents
+and whether they trust the service before uploading. Operators should review
+their hosting configuration, logging, retention and applicable privacy
+obligations before deploying or changing how files are handled.
+
+Uploads are limited to 50 MB and 500 pages per PDF. The preview renders
+locally in the browser using the bundled PDF.js files.
 To update those files, install the pinned development dependency with
 `corepack yarn install --ignore-scripts`, then copy `build/pdf.min.mjs`,
 `build/pdf.worker.min.mjs`, `LICENSE`, `cmaps`, and `standard_fonts` from
